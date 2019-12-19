@@ -1,0 +1,230 @@
+---
+title: "JASA"
+author: "Jia Ying"
+date: "19/12/2019"
+output: html_document
+---
+
+# Downloading the datasets for this scrip from:
+https://github.com/JY-JiaYING/JASA_Paper
+
+# Analysis A: Articulatory dynamics of tongue lateralization
+```{r}
+# Loading packages
+library(gss)
+library(ggplot2)
+
+# Loading data: 
+dat <- read.csv("C:/Users/Jia/Desktop/JASA/writing/data/dat.csv")
+dat$time <- dat$samp*10
+
+for (i in 1:nrow(dat)){
+  dat$type[i] <- paste0(dat$vowel[i],".",dat$syllable[i])
+}
+
+dat$type <- as.factor(dat$type)
+
+dat$item <- as.factor(dat$item)
+
+for (i in unique(dat$item)){
+  test <- dat$delta[dat$item==i]
+  if ( max(abs(test))>20){
+    dat <- dat[!dat$item==i,]
+  }
+}
+
+ss.model <- ssanova(deltaz ~ type + time + type:time,data=dat)
+
+grid <- expand.grid(time = seq(0,290,length=60),
+                    type = c("ae.coda","ae.onset","ih.coda","ih.onset")
+)
+
+grid$fit <- predict(ss.model,newdata=grid,se=T)$fit
+grid$se <- predict(ss.model,newdata=grid,se=T)$se.fit
+
+
+ggplot(grid,aes(x=time,color=type,group=type)) +
+  xlab("Time (ms)") + ylab("Normalized tongue lateralization") +
+  geom_line(aes(y=fit,color=type),size=1.5) +
+  geom_ribbon(aes(ymin=fit-(1.96*se),ymax=fit+(1.96*se),fill=type),alpha=0.5, color="NA")
+
+```
+
+# Analysis B: Acoustic measurements of tongue lateralization vs. F1 frequency
+```{r}
+
+dat$time <- dat$samp*10
+
+for (i in 1:nrow(dat)){
+  dat$type[i] <- paste0(dat$vowel[i],".",dat$syllable[i])
+}
+
+dat$type <- as.factor(dat$type)
+
+dat$item <- as.factor(dat$item)
+
+for (i in unique(dat$item)){
+  test <- dat$delta[dat$item==i]
+  if ( max(abs(test))>20){
+    dat <- dat[!dat$item==i,]
+  }
+}
+
+ss.model <- ssanova(f1z ~ type + time + type:time,data=dat)
+
+grid <- expand.grid(time = seq(0,290,length=60),
+                    type = c("ae.coda","ae.onset","ih.coda","ih.onset")
+)
+
+grid$fit <- predict(ss.model,newdata=grid,se=T)$fit
+grid$se <- predict(ss.model,newdata=grid,se=T)$se.fit
+
+
+ggplot(grid,aes(x=time,color=type,group=type)) +
+  xlab("Time (ms)") + ylab("Normalized F1 value") +
+  geom_line(aes(y=fit,color=type),size=1.5) +
+  geom_ribbon(aes(ymin=fit-(1.96*se),ymax=fit+(1.96*se),fill=type),alpha=0.5, color="NA")
+
+```
+
+# Analysis B: Acoustic measurements of tongue lateralization vs. F2 frequency
+```{r}
+ss.model <- ssanova(f2z ~ type + time + type:time,data=dat)
+
+grid <- expand.grid(time = seq(0,290,length=60),
+                    type = c("ae.coda","ae.onset","ih.coda","ih.onset")
+)
+
+grid$fit <- predict(ss.model,newdata=grid,se=T)$fit
+grid$se <- predict(ss.model,newdata=grid,se=T)$se.fit
+
+
+ggplot(grid,aes(x=time,color=type,group=type)) +
+  xlab("Time (ms)") + ylab("Normalized F2 value") +
+  geom_line(aes(y=fit,color=type),size=1.5) +
+  geom_ribbon(aes(ymin=fit-(1.96*se),ymax=fit+(1.96*se),fill=type),alpha=0.5, color="NA")
+
+```
+
+# Analysis B: Acoustic measurements of tongue lateralization vs. F3 frequency
+```{r}
+ss.model <- ssanova(f3z ~ type + time + type:time,data=dat)
+
+grid <- expand.grid(time = seq(0,290,length=60),
+                    type = c("ae.coda","ae.onset","ih.coda","ih.onset")
+)
+
+grid$fit <- predict(ss.model,newdata=grid,se=T)$fit
+grid$se <- predict(ss.model,newdata=grid,se=T)$se.fit
+
+
+ggplot(grid,aes(x=time,color=type,group=type)) +
+  xlab("Time (ms)") + ylab("Normalized F3 value") +
+  geom_line(aes(y=fit,color=type),size=1.5) +
+  geom_ribbon(aes(ymin=fit-(1.96*se),ymax=fit+(1.96*se),fill=type),alpha=0.5, color="NA")
+
+```
+
+# Stats - Linear mixed effect models
+```{r}
+install.packages("lme4")
+install.packages("lmerTest")
+install.packages("ggplot2")
+install.packages("relaimpo")
+
+
+library(lme4)
+library(lmerTest)
+library(ggplot2)
+library(relaimpo)
+
+# check the first few rows to make sure everything looks fine
+head(dat)
+tail(dat)
+
+# standarize the measurements, normalized by speaker
+
+  
+slist <- c('F03','F04','F05','M06','M07','M08')
+for (s in list(dat$speaker)){
+  subdata <- dat[dat$speaker==s,]
+  
+  dat$deltaz[dat$speaker==s] <- scale(subdata$delta,center=T,scale=T)
+  dat$f1z[dat$speaker==s] <- scale(subdata$f1,center=T,scale=T)
+  dat$f2z[dat$speaker==s] <- scale(subdata$f2,center=T,scale=T)
+  dat$f3z[dat$speaker==s] <- scale(subdata$f3,center=T,scale=T)
+}  
+
+
+# check no. of rows
+nrow(dat)
+
+# attach data
+attach(dat)
+
+# scatter plot
+plot(samp_norm,deltaz)
+
+# reduce the data to contain only data points that are equal to or less than 3 stdev
+dat <- dat[abs(dat$deltaz)<=3 &
+                         abs(dat$f1z)<=3 &
+                         abs(dat$f2z)<=3 &
+                         abs(dat$f3z)<=3,] 
+
+# check no. of rows
+nrow(dat)
+
+# stats models
+mod.f1 <- lmer(f1z ~ deltaz*vowel*syllable + (1|speaker) + (1|item), data=dat)
+mod.f2 <- lmer(f2z ~ deltaz*vowel*syllable + (1|speaker) + (1|item), data=dat)
+mod.f3 <- lmer(f3z ~ deltaz*vowel*syllable + (1|speaker) + (1|item), data=dat)
+
+# Bonferroni correction (standard a level/the number of models)
+0.05/3
+# 0.0167
+
+# check the results of your models
+summary(mod.f1)
+summary(mod.f2)
+summary(mod.f3)
+
+
+# visualization
+
+# Testing - reordering within facet - some ideas
+d <- data.frame(
+  f = rep(c("f1", "f2"), each = 3),
+  x = rep(c("a", "b", "c"), 2),
+  y = c(1, 2, 3, 3, 2, 1)
+)
+
+ggplot(d, aes(x, y)) +
+  geom_col() +
+  facet_wrap(~ f)
+
+# to change order of facet wrap -try this one - it works
+dat$syllable <- factor(dat$syllable, levels = c("onset", "coda"))
+
+ggplot(dat,aes(x=deltaz, y=f1z, col=vowel, group=vowel)) +
+  geom_point(alpha=0.2) + geom_smooth(method = "lm") +
+  facet_wrap(~syllable) + theme_bw()
+
+ggplot(dat,aes(x=deltaz, y=f2z, col=vowel, group=vowel)) +
+  geom_point(alpha=0.2) + geom_smooth(method = "lm") +
+  facet_wrap(~syllable) + theme_bw()
+
+ggplot(dat,aes(x=deltaz, y=f3z, col=vowel, group=vowel)) +
+  geom_point(alpha=0.2) + geom_smooth(method = "lm") +
+  facet_wrap(~syllable) + theme_bw()
+
+```
+
+# Stats - Relative importance analysis
+```{r}
+lm1 <- lm(deltaz ~ f1z + f2z + f3z , data=dat)
+rel.weights <- calc.relimp(lm1, type = c("lmg"), rela = T)
+rel.weights
+
+```
+
+
